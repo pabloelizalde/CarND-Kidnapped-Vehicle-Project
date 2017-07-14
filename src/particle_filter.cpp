@@ -56,7 +56,28 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
+  default_random_engine gen;
+  double std_x, std_y, std_yaw;
+  std_x = std_pos[0];
+  std_y = std_pos[1];
+  std_yaw = std_pos[2];
 
+  for (int i = 0; i < num_particles; i++) {
+  //TODO: what to do when yaw_rate es 0
+    particles[i].x += (velocity / yaw_rate) * (sin(particles[i].theta + (yaw_rate * delta_t)) - sin(particles[i].theta));
+    particles[i].y += (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta - (yaw_rate * delta_t)));
+    particles[i].theta += yaw_rate * delta_t;
+
+    //define normal distributions for x,y and yaw
+    normal_distribution<double> dist_x(particles[i].x, std_x);
+    normal_distribution<double> dist_y(particles[i].y, std_y);
+    normal_distribution<double> dist_yaw(particles[i].theta, std_yaw);
+
+    //add gaussian noise to the predicted value for this particle
+    particles[i].x = dist_x(gen);
+    particles[i].y = dist_y(gen);
+    particles[i].theta = dist_yaw(gen);
+  }
 }
 
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
