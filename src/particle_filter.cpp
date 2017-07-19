@@ -19,21 +19,23 @@
 
 using namespace std;
 
+#define  NUM_PARTICLES (50)
+
 void ParticleFilter::init(double x, double y, double theta, double std[]) {
 
 	default_random_engine gen;
-	double std_x, std_y, std_psi; // Standard deviations for x, y, and psi
+	double std_x, std_y, std_yaw;
 	std_x = std[0];
 	std_y = std[1];
-	std_psi = std[2];
+	std_yaw = std[2];
 
 	// Create normal distributions
 	normal_distribution <double> dist_x(x, std_x);
 	normal_distribution <double> dist_y(y, std_y);
-	normal_distribution <double> dist_psi(theta, std_psi);
+	normal_distribution <double> dist_yaw(theta, std_yaw);
 
 	// Set number of particles
-  num_particles = 10;
+  num_particles = NUM_PARTICLES;
 
 	for (int i = 0; i < num_particles; i++) {
 
@@ -41,8 +43,12 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 		particle.id = i;
 		particle.x = dist_x(gen);
 		particle.y = dist_y(gen);
-		particle.theta = dist_psi(gen);
+		particle.theta = dist_yaw(gen);
 		particle.weight = 1;
+
+    particle.associations.clear();
+    particle.sense_x.clear();
+    particle.sense_y.clear();
 
 		particles.push_back(particle);
 		weights.push_back(particle.weight);
@@ -52,10 +58,7 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 }
 
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
-	// TODO: Add measurements to each particle and add random Gaussian noise.
-	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
-	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
-	//  http://www.cplusplus.com/reference/random/default_random_engine/
+
   default_random_engine gen;
   double std_x, std_y, std_yaw;
   std_x = std_pos[0];
@@ -63,10 +66,18 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
   std_yaw = std_pos[2];
 
   for (int i = 0; i < num_particles; i++) {
-  //TODO: what to do when yaw_rate es 0
-    particles[i].x += (velocity / yaw_rate) * (sin(particles[i].theta + (yaw_rate * delta_t)) - sin(particles[i].theta));
-    particles[i].y += (velocity / yaw_rate) * (cos(particles[i].theta) - cos(particles[i].theta - (yaw_rate * delta_t)));
-    particles[i].theta += yaw_rate * delta_t;
+
+    if (fabs(yaw_rate) < 0.0001) {
+      particles[i].x += velocity * delta_t * cos(particles[i].theta);
+      particles[i].y +=  velocity * delta_t * sin(particles[i].theta);
+      particles[i].theta += 0.0001 * delta_t;
+    } else {
+      double vel_yaw = velocity / yaw_rate;
+      double yaw_diff_time = yaw_rate * delta_t;
+      particles[i].x += vel_yaw * (sin(particles[i].theta + yaw_diff_time) - sin(particles[i].theta));
+      particles[i].y += vel_yaw * (cos(particles[i].theta) - cos(particles[i].theta + yaw_diff_time));
+      particles[i].theta += yaw_diff_time;
+    }
 
     //define normal distributions for x,y and yaw
     normal_distribution<double> dist_x(particles[i].x, std_x);
